@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RotaFácil V4 • Engenharia Operacional</title>
+  <!-- Tesseract.js para leitura OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --primary: #0d47a1;
+      --primary-light: #1976d2;
+      --success: #2e7d32;
+      --warning: #ef6c00;
+      --danger: #c62828;
+      --waze: #33ccff;
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #1a1f36;
+      --muted: #5e6c84;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 90px; }
+
+    header { background: var(--primary); color: #fff; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+    header h1 { font-size: 17px; font-weight: 700; }
+    .header-actions { display: flex; gap: 6px; }
+    .btn-header { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 7px 10px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 11px; }
+
+    .kpi-bar { background: var(--card); padding: 12px; border-bottom: 1px solid #e0e6ed; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; gap: 6px; }
+    .kpi-val { font-size: 20px; font-weight: 800; }
+    .kpi-lbl { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+    .kpi-sub { margin-top: 10px; padding-top: 8px; border-top: 1px solid #f0f2f5; display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--muted); }
+
+    .view { display: none; padding: 14px; }
+    .view.active { display: block; }
+
+    /* Botão de Câmera Nativo */
+    .camera-label-btn {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 16px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+      overflow: hidden;
+      text-align: center;
+      user-select: none;
+    }
+    .camera-label-btn input[type="file"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .lbl-blue { background: var(--primary-light); color: #fff; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(25,118,210,0.3); }
+    .lbl-dark { background: #1e293b; color: #fff; margin-bottom: 10px; font-size: 13px; padding: 12px; }
+
+    .auto-toggle-bar {
+      background: var(--card);
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* Card Próxima Entrega */
+    .next-card { background: var(--card); border-radius: 16px; padding: 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); margin-bottom: 14px; border-left: 6px solid var(--primary); }
+    .badge-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .badge-stop { background: var(--primary); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 800; letter-spacing: 0.3px; }
+    .dist-info { font-size: 13px; font-weight: 700; color: var(--muted); }
+    .client-name { font-size: 15px; font-weight: 600; color: var(--muted); }
+    .address-main { font-size: 20px; font-weight: 800; margin: 4px 0; line-height: 1.25; }
+    .entrega-tag { color: var(--primary); font-weight: 900; }
+    .address-sub { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+    .alert-geo { background: #fff3e0; color: #e65100; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+
+    /* Botões */
+    .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .btn { border: none; border-radius: 10px; padding: 14px; font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
+    .btn:active { transform: scale(0.98); }
+    .btn-waze { background: var(--waze); color: #000; }
+    .btn-maps { background: var(--primary-light); color: #fff; }
+    .btn-multi-maps { background: linear-gradient(135deg, #0d47a1, #00838f); color: #fff; width: 100%; margin-bottom: 12px; font-size: 13px; box-shadow: 0 3px 10px rgba(13,71,161,0.25); }
+    .btn-done { background: var(--success); color: #fff; width: 100%; font-size: 16px; padding: 16px; margin-bottom: 10px; }
+    .sec-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
+    .btn-skip { background: #fff; border: 1.5px solid #cbd5e1; color: var(--text); font-size: 12px; padding: 11px; }
+    .btn-prob { background: #ffebee; border: 1.5px solid #ffcdd2; color: var(--danger); font-size: 12px; padding: 11px; }
+
+    /* Mapa */
+    #mapaRota { width: 100%; height: 270px; border-radius: 14px; margin-bottom: 12px; border: 2px solid #cbd5e1; z-index: 1; }
+    .route-summary-box { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; justify-content: space-around; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+
+    /* Lista da Rota & Ações */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 8px; }
+    .section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+    .btn-clear-all { background: #ffebee; color: var(--danger); border: 1px solid #ffcdd2; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+
+    .stop-item { background: var(--card); border-radius: 10px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .stop-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; flex-shrink: 0; }
+    .st-pendente .stop-num { background: #fff3e0; color: var(--warning); }
+    .st-concluida .stop-num { background: #e8f5e9; color: var(--success); }
+    .st-problema .stop-num, .st-pulada .stop-num { background: #ffebee; color: var(--danger); }
+    .st-concluida .stop-addr { text-decoration: line-through; color: var(--muted); }
+    .stop-info { flex: 1; min-width: 0; }
+    .stop-addr { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stop-prefix { color: var(--primary); font-weight: 800; }
+    .stop-meta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stop-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .btn-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; }
+    .btn-edit { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+    .btn-del { background: #fff1f2; border: 1px solid #fecdd3; color: #be123c; }
+
+    /* Scanner & Câmera */
+    .scanner-card { background: var(--card); border-radius: 14px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 12px; }
+    .preview-img { width: 100%; max-height: 150px; object-fit: contain; border-radius: 10px; margin-bottom: 10px; display: none; background: #111; }
+    .status-banner { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 10px; }
+    .status-banner.success { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    .status-banner.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+    .manual-box { background: var(--card); padding: 14px; border-radius: 12px; margin-top: 10px; }
+    .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    input[type="text"] { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+
+    .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: var(--card); border-top: 1px solid #e0e6ed; display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 6px; gap: 6px; z-index: 1000; }
+    .tab-btn { border: none; background: transparent; padding: 10px 4px; border-radius: 10px; font-weight: 700; font-size: 12px; color: var(--muted); cursor: pointer; }
+    .tab-btn.active { background: #e3f2fd; color: var(--primary); }
+
+    /* Modais & Toast */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 2000; align-items: flex-end; justify-content: center; }
+    .modal-bg.open { display: flex; }
+    .modal-sheet { background: #fff; width: 100%; max-width: 480px; border-radius: 20px 20px 0 0; padding: 20px; }
+    .modal-sheet h3 { margin-bottom: 14px; text-align: center; }
+    .occ-btn { width: 100%; padding: 14px; margin-bottom: 8px; border: none; border-radius: 10px; background: #ffebee; color: var(--danger); font-weight: 700; font-size: 14px; cursor: pointer; }
+
+    .toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #1a1f36; color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; z-index: 3000; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-align: center; max-width: 90%; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🚚 RotaFácil V4</h1>
+    <div class="header-actions">
+      <button class="btn-header" onclick="limparTodaRota()">Limpar</button>
+      <button class="btn-header" onclick="resetarExemplo()">Demo</button>
+    </div>
+  </header>
+
+  <!-- Barra de KPIs -->
+  <div class="kpi-bar">
+    <div class="kpi-grid">
+      <div><div class="kpi-val" id="kpiTotal" style="color:var(--primary)">0</div><div class="kpi-lbl">Total</div></div>
+      <div><div class="kpi-val" id="kpiFeitas" style="color:var(--success)">0</div><div class="kpi-lbl">Feitas</div></div>
+      <div><div class="kpi-val" id="kpiRestantes" style="color:var(--warning)">0</div><div class="kpi-lbl">Restantes</div></div>
+      <div><div class="kpi-val" id="kpiProblemas" style="color:var(--danger)">0</div><div class="kpi-lbl">Problemas</div></div>
+    </div>
+    <div class="kpi-sub">
+      <span id="kpiPrevisao">Previsão de término: --:--</span>
+      <span id="kpiDistanciaTotal" style="color:var(--primary)">0.0 km</span>
+    </div>
+  </div>
+
+  <!-- TELA 1: MODO MOTORISTA -->
+  <div id="viewMotorista" class="view active">
+    <button class="btn btn-multi-maps" id="btnSubirMaps" onclick="abrirRotaCompletaNoGoogleMaps()">
+      🗺️ SUBIR ROTA INTELIGENTE NO GOOGLE MAPS
+    </button>
+
+    <div class="auto-toggle-bar">
+      <span>⚡ Abrir GPS da próxima ao concluir</span>
+      <input type="checkbox" id="chkAutoNav" style="width:20px; height:20px;" />
+    </div>
+
+    <div id="proximaEntregaContainer"></div>
+
+    <div class="section-header">
+      <span class="section-title">Sequência Otimizada</span>
+      <span style="font-size:11px; color:var(--muted);">✏️ Editar • 🗑️ Apagar</span>
+    </div>
+    <div id="listaEntregas"></div>
+  </div>
+
+  <!-- TELA 2: CAPTURA AUTOMÁTICA POR FOTO -->
+  <div id="viewScanner" class="view">
+    <div class="scanner-card">
+      <div class="status-banner" id="scanStatus">
+        📷 Tire foto da etiqueta: captura e numera automaticamente (Entrega 1, 2...)
+      </div>
+
+      <img id="fotoEtiquetaPreview" class="preview-img" alt="Etiqueta capturada" />
+
+      <label class="camera-label-btn lbl-blue">
+        📷 FOTOGRAFAR ETIQUETA (CAPTURA AUTOMÁTICA)
+        <input type="file" id="inputFotoEtiqueta" accept="image/*" capture="environment" onchange="aoSelecionarFotoEtiqueta(event)" />
+      </label>
+
+      <label class="camera-label-btn" style="background:#f1f5f9; color:#1e293b; font-size:13px; padding:11px;">
+        🖼️ Escolher Foto da Galeria
+        <input type="file" accept="image/*" onchange="aoSelecionarFotoEtiqueta(event)" />
+      </label>
+    </div>
+
+    <!-- Entrada Manual Rápida por CEP -->
+    <div class="manual-box">
+      <div style="font-weight:700; font-size:13px; margin-bottom:8px;">⌨️ Cadastro Rápido por CEP</div>
+      <div class="input-row">
+        <input type="text" id="inCep" placeholder="CEP (ex: 09920-570)" maxlength="9" />
+        <input type="text" id="inNumero" placeholder="Número (ex: 381)" />
+      </div>
+      <div class="input-row">
+        <input type="text" id="inCliente" placeholder="Nome do Destinatário" />
+        <button class="btn btn-maps" style="padding:10px; margin:0; font-size:13px;" onclick="adicionarPorCepManual()">+ Adicionar</button>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title">Pacotes Cadastrados (<span id="countBipados">0</span>)</span>
+      <button class="btn-clear-all" onclick="limparTodaRota()">🗑️ Apagar Todos</button>
+    </div>
+    <div id="listaBipados"></div>
+
+    <div style="margin-top:14px;">
+      <button class="btn btn-multi-maps" onclick="finalizarCadastroESubirMaps()">
+        🚀 OTIMIZAR ROTA E SUBIR NO GOOGLE MAPS
+      </button>
+    </div>
+  </div>
+
+  <!-- TELA 3: MAPA DA ROTA TRAÇADA -->
+  <div id="viewMapa" class="view">
+    <div class="route-summary-box">
+      <div>
+        <div style="font-size:18px; font-weight:800; color:var(--primary);" id="mapDist">0.0 km</div>
+        <div style="font-size:11px; color:var(--muted); font-weight:700;">DISTÂNCIA REAL</div>
+      </div>
+      <div>
+        <div style="font-size:18px; font-weight:800; color:var(--success);" id="mapTempo">0 min</div>
+        <div style="font-size:11px; color:var(--muted); font-weight:700;">TEMPO NA RUA</div>
+      </div>
+      <div>
+        <div style="font-size:18px; font-weight:800; color:var(--warning);" id="mapParadas">0</div>
+        <div style="font-size:11px; color:var(--muted); font-weight:700;">PARADAS</div>
+      </div>
+    </div>
+
+    <div id="mapaRota"></div>
+
+    <button class="btn btn-multi-maps" onclick="abrirRotaCompletaNoGoogleMaps()">
+      🗺️ ABRIR ESTA ROTA NO GOOGLE MAPS
+    </button>
+  </div>
+
+  <!-- Navegação Inferior -->
+  <div class="bottom-nav">
+    <button class="tab-btn active" id="tabMotorista" onclick="mudarAba('motorista')">🧭 Motorista</button>
+    <button class="tab-btn" id="tabScanner" onclick="mudarAba('scanner')">📷 Foto Auto</button>
+    <button class="tab-btn" id="tabMapa" onclick="mudarAba('mapa')">🗺️ Mapa Rota</button>
+  </div>
+
+  <!-- Modal de Ocorrências -->
+  <div class="modal-bg" id="modalOcorrencia" onclick="fecharModal(event)">
+    <div class="modal-sheet">
+      <h3>Registrar Ocorrência</h3>
+      <button class="occ-btn" onclick="registrarOcorrencia('CLIENTE AUSENTE')">CLIENTE AUSENTE</button>
+      <button class="occ-btn" onclick="registrarOcorrencia('ENDEREÇO INCORRETO')">ENDEREÇO INCORRETO</button>
+      <button class="occ-btn" onclick="registrarOcorrencia('ESTABELECIMENTO FECHADO')">ESTABELECIMENTO FECHADO</button>
+      <button class="occ-btn" onclick="registrarOcorrencia('RECUSOU RECEBIMENTO')">RECUSOU RECEBIMENTO</button>
+      <button class="occ-btn" style="background:#f1f5f9; color:#334155;" onclick="fecharModal()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Modal de Edição Rápida de Número / Cliente -->
+  <div class="modal-bg" id="modalEdicao" onclick="fecharModalEdicao(event)">
+    <div class="modal-sheet">
+      <h3>Editar Entrega</h3>
+      <input type="hidden" id="editId" />
+      <div style="margin-bottom:8px;">
+        <input type="text" id="editLogradouro" placeholder="Rua / Avenida" />
+      </div>
+      <div class="input-row">
+        <input type="text" id="editNumero" placeholder="Número" />
+        <input type="text" id="editCliente" placeholder="Destinatário" />
+      </div>
+      <button class="btn btn-done" style="margin-top:8px;" onclick="salvarEdicaoEntrega()">✅ SALVAR ALTERAÇÃO</button>
+      <button class="occ-btn" style="background:#f1f5f9; color:#334155;" onclick="fecharModalEdicao()">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <canvas id="workCanvas" style="display:none;"></canvas>
+
+  <script>
+    // ========================================================================
+    // ENGENHARIA DE ESTADO, CACHE DE CEP/GEO E PERSISTÊNCIA
+    // ========================================================================
+    let motoristaPos = { lat: -23.6865, lng: -46.6234 };
+    let rotaGeoJson = null;
+    let distanciaTotalKm = 0;
+    let tempoTotalMin = 0;
+    let leafletMap = null;
+    let leafletLayerGroup = null;
+
+    // Cache local para evitar bloqueio de API (Rate-Limit) ao bipar até 140 pacotes
+    const cacheGeo = JSON.parse(localStorage.getItem("rotafacil_cache_geo") || "{}");
+    function salvarCacheGeo() {
+      localStorage.setItem("rotafacil_cache_geo", JSON.stringify(cacheGeo));
+    }
+
+    const DADOS_INICIAIS = [
+      {
+        id: "1", ordem: 1, codigo: "BR9812731", destinatario: "João Silva",
+        logradouro: "Av. Fábio Eduardo Ramos Esquivel", numero: "1200",
+        bairro: "Centro", cidade: "Diadema - SP", cep: "09920-570",
+        lat: -23.6865, lng: -46.6234, validado: true, status: "pendente", motivo: "", temFoto: false
+      },
+      {
+        id: "2", ordem: 2, codigo: "BR9812732", destinatario: "Maria Oliveira",
+        logradouro: "Rua Santo Alberto", numero: "381",
+        bairro: "Vila São Pedro", cidade: "São Paulo - SP", cep: "04676-000",
+        lat: -23.6682, lng: -46.6789, validado: true, status: "pendente", motivo: "", temFoto: false
+      },
+      {
+        id: "3", ordem: 3, codigo: "BR9812733", destinatario: "Mercado Central",
+        logradouro: "Av. Cupecê", numero: "2450",
+        bairro: "Jardim Prudência", cidade: "São Paulo - SP", cep: "04366-000",
+        lat: -23.6641, lng: -46.6632, validado: true, status: "pendente", motivo: "", temFoto: false
+      }
+    ];
+
+    let entregas = JSON.parse(localStorage.getItem("rotafacil_v4")) || JSON.parse(JSON.stringify(DADOS_INICIAIS));
+
+    function salvarDados() {
+      localStorage.setItem("rotafacil_v4", JSON.stringify(entregas));
+    }
+
+    function resetarExemplo() {
+      entregas = JSON.parse(JSON.stringify(DADOS_INICIAIS));
+      salvarDados();
+      tracarRotaInteligente();
+    }
+
+    function limparTodaRota() {
+      if (entregas.length === 0) return;
+      if (!confirm("Deseja apagar TODOS os endereços da rota atual?")) return;
+      entregas = [];
+      rotaGeoJson = null;
+      distanciaTotalKm = 0;
+      tempoTotalMin = 0;
+      salvarDados();
+      renderizarTudo();
+      mostrarToast("🗑️ Todos os endereços foram apagados.");
+    }
+
+    function excluirEntrega(id) {
+      const alvo = entregas.find(e => e.id === id);
+      if (!alvo) return;
+      entregas = entregas.filter(e => e.id !== id);
+      entregas.forEach((e, i) => e.ordem = i + 1);
+      salvarDados();
+      renderizarTudo();
+      mostrarToast(`🗑️ Apagado: Entrega ${alvo.ordem} (${alvo.logradouro})`);
+    }
+
+    // Edição rápida de número ou nome (sem precisar refotografar)
+    function abrirEdicao(id) {
+      const item = entregas.find(e => e.id === id);
+      if (!item) return;
+      document.getElementById("editId").value = item.id;
+      document.getElementById("editLogradouro").value = item.logradouro;
+      document.getElementById("editNumero").value = item.numero;
+      document.getElementById("editCliente").value = item.destinatario;
+      document.getElementById("modalEdicao").classList.add("open");
+    }
+
+    function fecharModalEdicao(e) {
+      if (!e || e.target.id === "modalEdicao") {
+        document.getElementById("modalEdicao").classList.remove("open");
+      }
+    }
+
+    async function salvarEdicaoEntrega() {
+      const id = document.getElementById("editId").value;
+      const item = entregas.find(e => e.id === id);
+      if (!item) return;
+
+      item.logradouro = document.getElementById("editLogradouro").value.trim() || item.logradouro;
+      item.numero = document.getElementById("editNumero").value.trim() || "S/N";
+      item.destinatario = document.getElementById("editCliente").value.trim() || "Cliente";
+
+      fecharModalEdicao();
+      mostrarToast("Atualizando coordenadas...");
+
+      const geo = await consultarCepECoordenadas(item.cep.replace(/\D/g, ""), item.numero, item.logradouro);
+      if (geo.lat && geo.lng) {
+        item.lat = geo.lat;
+        item.lng = geo.lng;
+        item.validado = geo.validado;
+      }
+
+      salvarDados();
+      renderizarTudo();
+      mostrarToast(`✅ Entrega ${item.ordem} atualizada!`);
+    }
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        motoristaPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        renderizarTudo();
+      }, () => {});
+    }
+
+    function calcularKmLinhaReta(lat1, lon1, lat2, lon2) {
+      const p = 0.017453292519943295;
+      const a = 0.5 - Math.cos((lat2 - lat1) * p) / 2 +
+        Math.cos(lat1 * p) * Math.cos(lat2 * p) * (1 - Math.cos((lon2 - lon1) * p)) / 2;
+      return 12742 * Math.asin(Math.sqrt(a));
+    }
+
+    // ========================================================================
+    // MOTOR DE ROTEIRIZAÇÃO INTELIGENTE POR RUAS REAIS (OSRM)
+    // ========================================================================
+    async function tracarRotaInteligente() {
+      const finalizadas = entregas.filter(e => e.status !== "pendente");
+      const pendentesComGps = entregas.filter(e => e.status === "pendente" && e.lat && e.lng);
+      const pendentesSemGps = entregas.filter(e => e.status === "pendente" && (!e.lat || !e.lng));
+
+      if (pendentesComGps.length === 0) {
+        entregas = [...finalizadas, ...pendentesSemGps];
+        entregas.forEach((e, i) => e.ordem = i + 1);
+        rotaGeoJson = null;
+        distanciaTotalKm = 0;
+        tempoTotalMin = 0;
+        salvarDados();
+        renderizarTudo();
+        return;
+      }
+
+      try {
+        // OSRM público suporta até ~100 coordenadas por requisição; para >90 otimizamos o núcleo e encadeamos o restante
+        const loteOtimizacao = pendentesComGps.slice(0, 90);
+        const excedente = pendentesComGps.slice(90);
+
+        const coordsArray = [
+          `${motoristaPos.lng},${motoristaPos.lat}`,
+          ...loteOtimizacao.map(e => `${e.lng},${e.lat}`)
+        ];
+
+        const url = `https://router.project-osrm.org/trip/v1/driving/${coordsArray.join(";")}?source=first&roundtrip=false&overview=full&geometries=geojson`;
+        const res = await fetch(url);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.code === "Ok" && data.trips && data.trips.length > 0) {
+            const trip = data.trips[0];
+            rotaGeoJson = trip.geometry;
+            distanciaTotalKm = trip.distance / 1000;
+            tempoTotalMin = Math.round(trip.duration / 60) + (loteOtimizacao.length * 3);
+
+            const reordenadas = new Array(loteOtimizacao.length);
+            data.waypoints.forEach((wp, idxOriginal) => {
+              if (idxOriginal === 0) return;
+              const novaPosicao = wp.waypoint_index - 1;
+              reordenadas[novaPosicao] = loteOtimizacao[idxOriginal - 1];
+            });
+
+            const listaLimpa = reordenadas.filter(Boolean);
+            entregas = [...finalizadas, ...listaLimpa, ...excedente, ...pendentesSemGps];
+            entregas.forEach((e, i) => e.ordem = i + 1);
+            salvarDados();
+            renderizarTudo();
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback offline (Vizinho mais próximo)
+      const ordenadasLocal = [];
+      const pool = [...pendentesComGps];
+      let curLat = motoristaPos.lat;
+      let curLng = motoristaPos.lng;
+      let kmAcum = 0;
+
+      while (pool.length > 0) {
+        pool.sort((a, b) =>
+          calcularKmLinhaReta(curLat, curLng, a.lat, a.lng) -
+          calcularKmLinhaReta(curLat, curLng, b.lat, b.lng)
+        );
+        const prox = pool.shift();
+        kmAcum += calcularKmLinhaReta(curLat, curLng, prox.lat, prox.lng) * 1.3;
+        ordenadasLocal.push(prox);
+        curLat = prox.lat;
+        curLng = prox.lng;
+      }
+
+      distanciaTotalKm = kmAcum;
+      tempoTotalMin = Math.round(kmAcum * 2.5) + (ordenadasLocal.length * 3);
+      entregas = [...finalizadas, ...ordenadasLocal, ...pendentesSemGps];
+      entregas.forEach((e, i) => e.ordem = i + 1);
+      salvarDados();
+      renderizarTudo();
+    }
+
+    // ========================================================================
+    // SUBIR LOTE DE ENTREGAS OTIMIZADAS NO GOOGLE MAPS
+    // ========================================================================
+    function abrirRotaCompletaNoGoogleMaps() {
+      const pendentes = entregas.filter(e => e.status === "pendente");
+      if (pendentes.length === 0) {
+        mostrarToast("Nenhuma entrega pendente para enviar ao Maps.");
+        return;
+      }
+
+      // Google Maps URL suporta origem + até 9 paradas (total 10 destinos por vez)
+      const lote = pendentes.slice(0, 10);
+      const formatarPonto = (e) => (e.lat && e.lng)
+        ? `${e.lat},${e.lng}`
+        : encodeURIComponent(`${e.logradouro}, ${e.numero} - ${e.cidade}`);
+
+      const destinoFinal = formatarPonto(lote[lote.length - 1]);
+      const intermediarias = lote.slice(0, -1).map(formatarPonto);
+
+      let mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${motoristaPos.lat},${motoristaPos.lng}&destination=${destinoFinal}&travelmode=driving`;
+      if (intermediarias.length > 0) {
+        mapsUrl += `&waypoints=${intermediarias.join("|")}`;
+      }
+
+      window.open(mapsUrl, "_blank");
+    }
+
+    async function finalizarCadastroESubirMaps() {
+      mostrarToast("🧠 Otimizando sequência inteligente...");
+      await tracarRotaInteligente();
+      mudarAba("motorista");
+      abrirRotaCompletaNoGoogleMaps();
+    }
+
+    function getProxima() {
+      return entregas.find(e => e.status === "pendente");
+    }
+
+    function aoTirarFotoComprovante(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const atual = getProxima();
+      if (atual) {
+        atual.temFoto = true;
+        salvarDados();
+        renderizarTudo();
+        mostrarToast("📸 Foto do comprovante anexada!");
+      }
+      event.target.value = "";
+    }
+
+    // ========================================================================
+    // FINALIZAR ENTREGA E AVANÇAR AUTOMATICAMENTE PARA A PRÓXIMA
+    // ========================================================================
+    function concluirEntrega() {
+      const atual = getProxima();
+      if (!atual) return;
+
+      atual.status = "concluida";
+      if (atual.lat && atual.lng) {
+        motoristaPos = { lat: atual.lat, lng: atual.lng };
+      }
+
+      salvarDados();
+      renderizarTudo();
+
+      const proxima = getProxima();
+      if (proxima) {
+        mostrarToast(`✅ Entrega ${atual.ordem} feita! Indo para Entrega ${proxima.ordem}: ${proxima.logradouro}, ${proxima.numero}`);
+
+        if (document.getElementById("chkAutoNav").checked) {
+          const dest = (proxima.lat && proxima.lng)
+            ? `${proxima.lat},${proxima.lng}`
+            : encodeURIComponent(`${proxima.logradouro}, ${proxima.numero} - ${proxima.cidade}`);
+          window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`, "_blank");
+        }
+      } else {
+        mostrarToast("🏆 Todas as entregas da rota foram concluídas!");
+      }
+    }
+
+    function pularEReotimizar() {
+      const atual = getProxima();
+      if (!atual) return;
+      atual.status = "pulada";
+      atual.motivo = "Pulada pelo motorista";
+      salvarDados();
+      tracarRotaInteligente();
+      mostrarToast(`⏭ Entrega ${atual.ordem} pulada. Rota recalculada!`);
+    }
+
+    function abrirModalOcorrencia() {
+      document.getElementById("modalOcorrencia").classList.add("open");
+    }
+
+    function fecharModal(e) {
+      if (!e || e.target.id === "modalOcorrencia") {
+        document.getElementById("modalOcorrencia").classList.remove("open");
+      }
+    }
+
+    function registrarOcorrencia(motivo) {
+      const atual = getProxima();
+      if (!atual) return;
+      atual.status = "problema";
+      atual.motivo = motivo;
+      fecharModal();
+      salvarDados();
+      tracarRotaInteligente();
+      mostrarToast(`⚠️ Entrega ${atual.ordem}: ${motivo}`);
+    }
+
+    // ========================================================================
+    // CAPTURA AUTOMÁTICA POR FOTO (OCR + CACHE + ADIÇÃO INSTANTÂNEA)
+    // ========================================================================
+    function redimensionarFotoParaOcr(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = new Image();
+          img.onload = function () {
+            const maxLargura = 1280;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxLargura) {
+              h = Math.round((h * maxLargura) / w);
+              w = maxLargura;
+            }
+            const canvas = document.getElementById("workCanvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function aoSelecionarFotoEtiqueta(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const statusEl = document.getElementById("scanStatus");
+      const preview = document.getElementById("fotoEtiquetaPreview");
+
+      statusEl.className = "status-banner";
+      statusEl.innerText = "⏳ Lendo etiqueta e capturando endereço automaticamente...";
+
+      try {
+        const imagemOtimizadaUrl = await redimensionarFotoParaOcr(file);
+        preview.src = imagemOtimizadaUrl;
+        preview.style.display = "block";
+
+        const { data: { text } } = await Tesseract.recognize(imagemOtimizadaUrl, "por");
+        const matchCep = text.match(/\b(\d{5})-?(\d{3})\b/);
+
+        if (!matchCep) {
+          statusEl.className = "status-banner error";
+          statusEl.innerText = "⚠️ CEP não encontrado na foto. Aproxime mais da etiqueta ou digite o CEP abaixo.";
+          event.target.value = "";
+          return;
+        }
+
+        const cepLimpo = `${matchCep[1]}${matchCep[2]}`;
+        const matchNum = text.match(/(?:rua|av|avenida|alameda|travessa|r\.|av\.)[^,\n]*?(?:n[º°.]?\s*|[,\s]+)(\d{1,5})\b/i);
+        const numero = matchNum ? matchNum[1] : "S/N";
+
+        let destinatario = "Cliente (Foto)";
+        const linhas = text.split("\n").map(l => l.trim()).filter(Boolean);
+        for (let i = 0; i < linhas.length; i++) {
+          if (/destinat|recebedor|cliente/i.test(linhas[i]) && linhas[i + 1]) {
+            destinatario = linhas[i + 1].substring(0, 32);
+            break;
+          }
+        }
+
+        const dadosEnd = await consultarCepECoordenadas(cepLimpo, numero);
+        const novaOrdem = entregas.length + 1;
+
+        entregas.push({
+          id: Date.now().toString(),
+          ordem: novaOrdem,
+          codigo: "PKG-" + Math.floor(100000 + Math.random() * 900000),
+          destinatario,
+          logradouro: dadosEnd.logradouro,
+          numero: dadosEnd.numero,
+          bairro: dadosEnd.bairro,
+          cidade: dadosEnd.cidade,
+          cep: dadosEnd.cep,
+          lat: dadosEnd.lat,
+          lng: dadosEnd.lng,
+          validado: dadosEnd.validado,
+          status: "pendente",
+          motivo: "",
+          temFoto: false
+        });
+
+        salvarDados();
+        renderizarTudo();
+
+        statusEl.className = "status-banner success";
+        statusEl.innerText = `✅ ENTREGA ${novaOrdem} ADICIONADA: ${dadosEnd.logradouro}, ${dadosEnd.numero} (${dadosEnd.cep})!`;
+        mostrarToast(`✅ Entrega ${novaOrdem}: ${dadosEnd.logradouro}, ${dadosEnd.numero}`);
+      } catch (err) {
+        statusEl.className = "status-banner error";
+        statusEl.innerText = "Erro ao processar a foto. Tente novamente.";
+      }
+
+      event.target.value = "";
+    }
+
+    async function adicionarPorCepManual() {
+      const cepInput = document.getElementById("inCep").value.replace(/\D/g, "");
+      const numInput = document.getElementById("inNumero").value.trim() || "S/N";
+      const cliInput = document.getElementById("inCliente").value.trim() || "Cliente";
+
+      if (cepInput.length !== 8) {
+        mostrarToast("Digite um CEP válido com 8 números.");
+        return;
+      }
+
+      mostrarToast("Buscando endereço...");
+      const dadosEnd = await consultarCepECoordenadas(cepInput, numInput);
+      const novaOrdem = entregas.length + 1;
+
+      entregas.push({
+        id: Date.now().toString(),
+        ordem: novaOrdem,
+        codigo: "PKG-" + Math.floor(100000 + Math.random() * 900000),
+        destinatario: cliInput,
+        logradouro: dadosEnd.logradouro,
+        numero: dadosEnd.numero || numInput,
+        bairro: dadosEnd.bairro,
+        cidade: dadosEnd.cidade,
+        cep: dadosEnd.cep,
+        lat: dadosEnd.lat,
+        lng: dadosEnd.lng,
+        validado: dadosEnd.validado,
+        status: "pendente",
+        motivo: "",
+        temFoto: false
+      });
+
+      document.getElementById("inCep").value = "";
+      document.getElementById("inNumero").value = "";
+      document.getElementById("inCliente").value = "";
+
+      salvarDados();
+      renderizarTudo();
+      mostrarToast(`✅ Entrega ${novaOrdem} adicionada!`);
+    }
+
+    // ========================================================================
+    // CONSULTA DE CEP + GEOCODIFICAÇÃO COM CACHE LOCAL E FALLBACK (ANTI-BLOQUEIO)
+    // ========================================================================
+    async function consultarCepECoordenadas(cepLimpo, numero, logradouroOverride = "") {
+      const chaveCache = `${cepLimpo}_${numero}`;
+      if (cacheGeo[chaveCache] && !logradouroOverride) {
+        return cacheGeo[chaveCache];
+      }
+
+      let logradouro = logradouroOverride || `Logradouro CEP ${cepLimpo}`;
+      let bairro = "";
+      let cidade = "";
+      let lat = null;
+      let lng = null;
+      let validado = false;
+
+      try {
+        // 1. Consulta CEP (BrasilAPI com cache por CEP)
+        let dadosCep = cacheGeo[`cep_${cepLimpo}`];
+        if (!dadosCep) {
+          const resCep = await fetch(`https://brasilapi.com.br/api/cep/v2/${cepLimpo}`);
+          if (resCep.ok) {
+            dadosCep = await resCep.json();
+            cacheGeo[`cep_${cepLimpo}`] = dadosCep;
+          }
+        }
+
+        if (dadosCep) {
+          if (!logradouroOverride) logradouro = dadosCep.street || logradouro;
+          bairro = dadosCep.neighborhood || "";
+          cidade = `${dadosCep.city || ""} - ${dadosCep.state || ""}`;
+        }
+
+        // 2. Geocodificação Primária: Photon (Komoot/OSM - rápido e sem bloqueio rígido)
+        const queryStr = `${logradouro}, ${numero}, ${cidade}, Brasil`;
+        const resPhoton = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(queryStr)}&limit=1`);
+        if (resPhoton.ok) {
+          const photonData = await resPhoton.json();
+          if (photonData.features && photonData.features.length > 0) {
+            const coords = photonData.features[0].geometry.coordinates;
+            lng = coords[0];
+            lat = coords[1];
+            validado = (numero && numero !== "S/N");
+          }
+        }
+
+        // 3. Fallback: Nominatim caso Photon não retorne
+        if (!lat || !lng) {
+          const resGeo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryStr)}&format=json&limit=1`);
+          if (resGeo.ok) {
+            const geoList = await resGeo.json();
+            if (geoList.length > 0) {
+              lat = parseFloat(geoList[0].lat);
+              lng = parseFloat(geoList[0].lon);
+              validado = (geoList[0].type === "house" || (numero && numero !== "S/N"));
+            }
+          }
+        }
+      } catch (_) {}
+
+      const resultado = {
+        logradouro,
+        numero,
+        bairro,
+        cidade,
+        cep: cepLimpo.length === 8 ? `${cepLimpo.slice(0,5)}-${cepLimpo.slice(5)}` : cepLimpo,
+        lat,
+        lng,
+        validado
+      };
+
+      if (lat && lng) {
+        cacheGeo[chaveCache] = resultado;
+        salvarCacheGeo();
+      }
+
+      return resultado;
+    }
+
+    // ========================================================================
+    // NAVEGAÇÃO, MAPA VISUAL E RENDERIZAÇÃO (COM "Entrega 1, 2, 3...")
+    // ========================================================================
+    function mudarAba(aba) {
+      document.getElementById("viewMotorista").classList.toggle("active", aba === "motorista");
+      document.getElementById("viewScanner").classList.toggle("active", aba === "scanner");
+      document.getElementById("viewMapa").classList.toggle("active", aba === "mapa");
+
+      document.getElementById("tabMotorista").classList.toggle("active", aba === "motorista");
+      document.getElementById("tabScanner").classList.toggle("active", aba === "scanner");
+      document.getElementById("tabMapa").classList.toggle("active", aba === "mapa");
+
+      if (aba === "motorista") {
+        tracarRotaInteligente();
+      } else if (aba === "mapa") {
+        tracarRotaInteligente().then(() => setTimeout(renderizarMapaLeaflet, 150));
+      }
+    }
+
+    function renderizarMapaLeaflet() {
+      const mapEl = document.getElementById("mapaRota");
+      if (!leafletMap) {
+        leafletMap = L.map(mapEl).setView([motoristaPos.lat, motoristaPos.lng], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap"
+        }).addTo(leafletMap);
+        leafletLayerGroup = L.layerGroup().addTo(leafletMap);
+      }
+
+      leafletMap.invalidateSize();
+      leafletLayerGroup.clearLayers();
+
+      const pontosBounds = [[motoristaPos.lat, motoristaPos.lng]];
+
+      L.circleMarker([motoristaPos.lat, motoristaPos.lng], {
+        radius: 9, fillColor: "#0d47a1", color: "#fff", weight: 3, fillOpacity: 1
+      }).bindPopup("📍 Sua posição atual").addTo(leafletLayerGroup);
+
+      if (rotaGeoJson) {
+        L.geoJSON(rotaGeoJson, {
+          style: { color: "#1976d2", weight: 5, opacity: 0.85 }
+        }).addTo(leafletLayerGroup);
+      }
+
+      entregas.forEach(e => {
+        if (!e.lat || !e.lng) return;
+        pontosBounds.push([e.lat, e.lng]);
+        const cor = e.status === "concluida" ? "#2e7d32" : (e.status === "pendente" ? "#ef6c00" : "#c62828");
+
+        const iconHtml = `<div style="background:${cor};color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.4);">${e.ordem}</div>`;
+        const customIcon = L.divIcon({ html: iconHtml, className: "", iconSize: [26, 26], iconAnchor: [13, 13] });
+
+        L.marker([e.lat, e.lng], { icon: customIcon })
+          .bindPopup(`<b>Entrega ${e.ordem} - ${e.destinatario}</b><br>${e.logradouro}, ${e.numero}`)
+          .addTo(leafletLayerGroup);
+      });
+
+      if (pontosBounds.length > 1) {
+        leafletMap.fitBounds(pontosBounds, { padding: [30, 30] });
+      }
+    }
+
+    function renderizarTudo() {
+      const total = entregas.length;
+      const feitas = entregas.filter(e => e.status === "concluida").length;
+      const pendentesList = entregas.filter(e => e.status === "pendente");
+      const pendentes = pendentesList.length;
+      const problemas = entregas.filter(e => e.status === "problema" || e.status === "pulada").length;
+
+      document.getElementById("kpiTotal").innerText = total;
+      document.getElementById("kpiFeitas").innerText = feitas;
+      document.getElementById("kpiRestantes").innerText = pendentes;
+      document.getElementById("kpiProblemas").innerText = problemas;
+      document.getElementById("countBipados").innerText = total;
+
+      // Atualiza rótulo do botão do Google Maps indicando o lote exato
+      const btnMaps = document.getElementById("btnSubirMaps");
+      if (pendentes > 0) {
+        const lote = pendentesList.slice(0, 10);
+        const ini = lote[0].ordem;
+        const fim = lote[lote.length - 1].ordem;
+        btnMaps.innerText = ini === fim
+          ? `🗺️ SUBIR ENTREGA ${ini} NO GOOGLE MAPS`
+          : `🗺️ SUBIR ENTREGAS ${ini} A ${fim} NO GOOGLE MAPS`;
+      } else {
+        btnMaps.innerText = "🗺️ SUBIR ROTA INTELIGENTE NO GOOGLE MAPS";
+      }
+
+      document.getElementById("kpiDistanciaTotal").innerText = `${distanciaTotalKm.toFixed(1)} km restantes`;
+      document.getElementById("mapDist").innerText = `${distanciaTotalKm.toFixed(1)} km`;
+      document.getElementById("mapTempo").innerText = `${tempoTotalMin} min`;
+      document.getElementById("mapParadas").innerText = pendentes;
+
+      const mins = tempoTotalMin > 0 ? tempoTotalMin : pendentes * 4;
+      const fim = new Date(Date.now() + mins * 60000);
+      const hh = String(fim.getHours()).padStart(2, "0");
+      const mm = String(fim.getMinutes()).padStart(2, "0");
+      document.getElementById("kpiPrevisao").innerText = `Previsão de término: ${hh}:${mm}`;
+
+      const prox = getProxima();
+      const container = document.getElementById("proximaEntregaContainer");
+
+      if (prox) {
+        const dist = (prox.lat && prox.lng)
+          ? calcularKmLinhaReta(motoristaPos.lat, motoristaPos.lng, prox.lat, prox.lng) * 1.25
+          : 1.5;
+        const min = Math.round(dist * 2.5 + 2);
+
+        const wazeUrl = (prox.lat && prox.lng)
+          ? `https://waze.com/ul?ll=${prox.lat},${prox.lng}&navigate=yes`
+          : `https://waze.com/ul?q=${encodeURIComponent(prox.logradouro + ", " + prox.numero + " - " + prox.cidade)}&navigate=yes`;
+
+        const mapsUrl = (prox.lat && prox.lng)
+          ? `https://www.google.com/maps/dir/?api=1&destination=${prox.lat},${prox.lng}&travelmode=driving`
+          : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(prox.logradouro + ", " + prox.numero + " - " + prox.cidade)}&travelmode=driving`;
+
+        container.innerHTML = `
+          <div class="next-card">
+            <div class="badge-row">
+              <span class="badge-stop">ENTREGA ${prox.ordem} DE ${total} • ${prox.codigo}</span>
+              <span class="dist-info">📏 ~${dist.toFixed(1)} km • ⏱ ${min} min</span>
+            </div>
+            <div class="client-name">👤 ${prox.destinatario}</div>
+            <div class="address-main"><span class="entrega-tag">Entrega ${prox.ordem}:</span> ${prox.logradouro}, ${prox.numero}</div>
+            <div class="address-sub">${prox.bairro} • ${prox.cidade} • CEP ${prox.cep}</div>
+            ${!prox.validado ? `<div class="alert-geo">⚠ Endereço aproximado — toque em ✏️ na lista se precisar corrigir o nº</div>` : ""}
+
+            <div class="nav-grid">
+              <a href="${wazeUrl}" target="_blank" class="btn btn-waze">🧭 WAZE</a>
+              <a href="${mapsUrl}" target="_blank" class="btn btn-maps">🗺️ MAPS</a>
+            </div>
+
+            <label class="camera-label-btn lbl-dark">
+              ${prox.temFoto ? "📸 FOTO ANEXADA ✓ (TIRAR OUTRA)" : "📸 TIRAR FOTO DO COMPROVANTE"}
+              <input type="file" accept="image/*" capture="environment" onchange="aoTirarFotoComprovante(event)" />
+            </label>
+
+            <button class="btn btn-done" onclick="concluirEntrega()">✅ ENTREGA ${prox.ordem} REALIZADA</button>
+
+            <div class="sec-grid">
+              <button class="btn btn-skip" onclick="pularEReotimizar()">⏭ PULAR E RECALCULAR</button>
+              <button class="btn btn-prob" onclick="abrirModalOcorrencia()">⚠️ PROBLEMA</button>
+            </div>
+          </div>
+        `;
+      } else if (total > 0) {
+        container.innerHTML = `
+          <div class="next-card" style="text-align:center; border-left-color:var(--success);">
+            <div style="font-size:42px;">🏆</div>
+            <h2 style="margin:8px 0;">Rota Finalizada!</h2>
+            <p style="color:var(--muted); font-size:14px;">${feitas} entregues • ${problemas} ocorrências/puladas</p>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="next-card" style="text-align:center; border-left-color:var(--primary);">
+            <div style="font-size:38px;">📦</div>
+            <h3 style="margin:8px 0;">Nenhum pacote na rota</h3>
+            <p style="color:var(--muted); font-size:13px; margin-bottom:12px;">Toque em "Foto Auto" abaixo para fotografar as etiquetas dos pacotes.</p>
+            <button class="btn btn-maps" style="width:100%;" onclick="mudarAba('scanner')">📷 IR PARA CÂMERA DE PACOTES</button>
+          </div>
+        `;
+      }
+
+      // Renderiza a lista com "Entrega 1:", "Entrega 2:", "Entrega 3:" na frente de cada endereço
+      const htmlLista = entregas.length === 0
+        ? `<div style="text-align:center; color:var(--muted); font-size:13px; padding:16px;">Lista vazia</div>`
+        : entregas.map(e => {
+            const iconStatus = e.status === "concluida" ? (e.temFoto ? "✅📸" : "✅") : (e.status === "pendente" ? "🟡" : "🔴");
+            const iconGeo = e.validado ? "✓ Localizado" : "⚠ Verificar nº";
+            return `
+              <div class="stop-item st-${e.status}">
+                <div class="stop-num">${e.ordem}</div>
+                <div class="stop-info">
+                  <div class="stop-addr"><span class="stop-prefix">Entrega ${e.ordem}:</span> ${e.logradouro}, ${e.numero}</div>
+                  <div class="stop-meta">${e.motivo ? e.motivo : `${e.destinatario} • ${e.bairro} • ${iconGeo}`}</div>
+                </div>
+                <div class="stop-actions">
+                  <span>${iconStatus}</span>
+                  <button class="btn-icon btn-edit" title="Editar número ou nome" onclick="abrirEdicao('${e.id}')">✏️</button>
+                  <button class="btn-icon btn-del" title="Apagar endereço" onclick="excluirEntrega('${e.id}')">🗑️</button>
+                </div>
+              </div>
+            `;
+          }).join("");
+
+      document.getElementById("listaEntregas").innerHTML = htmlLista;
+      document.getElementById("listaBipados").innerHTML = htmlLista;
+    }
+
+    function mostrarToast(msg) {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(() => { t.style.display = "none"; }, 3200);
+    }
+
+    // Inicializa traçando a rota inteligente
+    tracarRotaInteligente();
+  </script>
+</body>
+</html>
